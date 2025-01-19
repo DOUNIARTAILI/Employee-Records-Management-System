@@ -3,6 +3,7 @@ package com.drtaili.security.user;
 import com.drtaili.security.auth.AuthenticationResponse;
 import com.drtaili.security.auth.AuthenticationService;
 import com.drtaili.security.auth.RegisterRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,7 +20,7 @@ public class UserController {
     private final UserService userService;
     @PostMapping("/register")
     public ResponseEntity<AuthenticationResponse> register(
-            @RequestBody RegisterRequest request
+            @Valid @RequestBody RegisterRequest request
     ) {
         var user = repository.findByEmail(request.getEmail());
         if (user.isPresent()) {
@@ -33,7 +34,7 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<User> updateUser(@PathVariable Integer id, @RequestBody User user) {
+    public ResponseEntity<User> updateUser(@PathVariable Integer id, @Valid @RequestBody User user) {
         return ResponseEntity.ok(userService.updateUser(id, user));
     }
 
@@ -44,3 +45,4 @@ public class UserController {
     }
 
 }
+

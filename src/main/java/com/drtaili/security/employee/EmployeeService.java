@@ -13,11 +13,10 @@ public class EmployeeService {
         return employeeRepository.findAll();
     }
 
-    public Optional<Employee> getEmployeeById(Long employeeId) {
-        return employeeRepository.findById(employeeId);
-    }
-
     public Employee createEmployee(Employee employee) {
+        if (employee.getEmployeeId() != null && employeeRepository.existsById(employee.getEmployeeId())) {
+            throw new RuntimeException("Employee with ID " + employee.getEmployeeId() + " already exists");
+        }
         return employeeRepository.save(employee);
     }
 
@@ -40,6 +39,20 @@ public class EmployeeService {
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new RuntimeException("Employee not found with id: " + employeeId));
         employeeRepository.delete(employee);
+    }
+
+    public List<Employee> searchEmployees(String name, Long id, String department, String jobTitle) {
+        if (id != null) {
+            return employeeRepository.findByEmployeeId(id);
+        } else if (name != null && !name.isEmpty()) {
+            return employeeRepository.findByFullNameContainingIgnoreCase(name);
+        } else if (department != null && !department.isEmpty()) {
+            return employeeRepository.findByDepartmentContainingIgnoreCase(department);
+        } else if (jobTitle != null && !jobTitle.isEmpty()) {
+            return employeeRepository.findByJobTitleContainingIgnoreCase(jobTitle);
+        } else {
+            return employeeRepository.findAll();
+        }
     }
 }
 
