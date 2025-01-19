@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -17,6 +18,7 @@ import static com.drtaili.security.user.Role.*;
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
+@EnableMethodSecurity
 public class SecurityConfig {
     private final AuthenticationProvider authenticationProvider;
     private final JwtAuthenticationFilter jwtAuthFilter;
@@ -32,10 +34,6 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/user/**").hasAuthority(ADMIN_CREATE.name())
                         .requestMatchers(HttpMethod.PUT, "/api/v1/user/**").hasAuthority(ADMIN_UPDATE.name())
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/user/**").hasAuthority(ADMIN_DELETE.name())
-                        .requestMatchers(HttpMethod.GET, "/api/v1/employee/**").hasAnyAuthority(ADMIN_READ.name(), MANAGER_READ.name(), HR_READ.name())
-                        .requestMatchers(HttpMethod.POST, "/api/v1/employee/**").hasAnyAuthority(ADMIN_CREATE.name(), HR_CREATE.name())
-                        .requestMatchers(HttpMethod.PUT, "/api/v1/employee/**").hasAnyAuthority(ADMIN_UPDATE.name(), MANAGER_UPDATE.name(), HR_UPDATE.name())
-                        .requestMatchers(HttpMethod.DELETE, "/api/v1/employee/**").hasAnyAuthority(ADMIN_DELETE.name(), HR_DELETE.name())
                         .anyRequest()
                         .authenticated()
                 )

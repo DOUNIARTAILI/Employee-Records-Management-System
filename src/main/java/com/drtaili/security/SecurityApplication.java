@@ -14,7 +14,7 @@ public class   SecurityApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(SecurityApplication.class, args);
 	}
-	@Bean
+	@Bean(name = "employeeSeeder")
 	public CommandLineRunner commandLineRunner (
 			AuthenticationService service
 	) {
