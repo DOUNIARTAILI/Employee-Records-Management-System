@@ -9,7 +9,7 @@ package org.example;
         import java.util.Date;
         import java.util.List;
 
-public class EmployeeManagement extends JFrame {
+public class EmployeeManagement extends JPanel {
     private JTable employeeTable;
     private DefaultTableModel tableModel;
     private List<Employee> employees;
@@ -74,10 +74,6 @@ public class EmployeeManagement extends JFrame {
 
         addButton.addActionListener(e -> showAddEmployeeDialog());
 
-        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        setSize(1200, 600);
-        setLocationRelativeTo(null);
-        setVisible(true);
     }
 
     class ButtonRenderer extends JPanel implements TableCellRenderer {
@@ -148,7 +144,12 @@ public class EmployeeManagement extends JFrame {
     }
 
     private void showAddEmployeeDialog() {
-        JDialog addDialog = new JDialog(this, "Add New Employee", true);
+        // In showAddUserDialog() and similar methods
+        JDialog addDialog = new JDialog(
+                (Frame) SwingUtilities.getWindowAncestor(this),
+                "Add New Employee",
+                true
+        );
         addDialog.setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5);
@@ -212,7 +213,11 @@ public class EmployeeManagement extends JFrame {
     }
 
     private void showEditEmployeeDialog(Employee employee) {
-        JDialog editDialog = new JDialog(this, "Edit Employee", true);
+        JDialog editDialog = new JDialog(
+                (Frame) SwingUtilities.getWindowAncestor(this),
+                "Edit Employee",
+                true
+        );
         editDialog.setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5);

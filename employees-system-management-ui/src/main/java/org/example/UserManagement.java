@@ -9,7 +9,7 @@ package org.example;
         import java.util.ArrayList;
         import java.util.List;
 
-public class UserManagement extends JFrame {
+public class UserManagement extends JPanel {
     private JTable userTable;
     private DefaultTableModel tableModel;
     private List<User> users;
@@ -71,11 +71,8 @@ public class UserManagement extends JFrame {
 
         addButton.addActionListener(e -> showAddUserDialog());
 
-        // Window configuration
-        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        setSize(800, 600);
-        setLocationRelativeTo(null);
-        setVisible(true);
+
+
     }
 
     class ButtonRenderer extends JPanel implements TableCellRenderer {
@@ -146,7 +143,12 @@ public class UserManagement extends JFrame {
 
 
     private void showAddUserDialog() {
-        JDialog addDialog = new JDialog(this, "Add New User", true);
+        // In showAddUserDialog() and similar methods
+        JDialog addDialog = new JDialog(
+                (Frame) SwingUtilities.getWindowAncestor(this),
+                "Add New User",
+                true
+        );
         addDialog.setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5);
@@ -217,7 +219,11 @@ public class UserManagement extends JFrame {
 
 
     private void showEditUserDialog(User user) {
-        JDialog editDialog = new JDialog(this, "Edit User", true);
+        JDialog editDialog = new JDialog(
+                (Frame) SwingUtilities.getWindowAncestor(this),
+                "Edit User",
+                true
+        );
         editDialog.setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5);

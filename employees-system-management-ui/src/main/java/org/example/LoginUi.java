@@ -50,7 +50,7 @@ public class LoginUi extends JPanel implements ActionListener{
             String username = usernameField.getText();
             String password = new String(passwordField.getPassword());
             if (username.equals("admin") && password.equals("admin")) {
-                new UserManagement();
+                new AdminDashboard();
                 frame.dispose();
             } else {
                 JOptionPane.showMessageDialog(this, "Username or password incorrect!");
