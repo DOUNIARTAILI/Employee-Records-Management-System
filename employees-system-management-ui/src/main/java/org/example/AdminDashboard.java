@@ -4,7 +4,7 @@ import javax.swing.*;
 
 public class AdminDashboard extends JFrame {
     public AdminDashboard() {
-        setTitle("Admin Dashboard");
+        setTitle("");
         JTabbedPane tabbedPane = new JTabbedPane();
 
         // Add tabs

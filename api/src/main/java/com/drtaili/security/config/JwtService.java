@@ -1,5 +1,6 @@
 package com.drtaili.security.config;
 
+import com.drtaili.security.user.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -32,9 +33,12 @@ public class JwtService {
     }
     public  String generateToken(Map<String, Object> extraClaims, UserDetails userDetails
     ) {
+        User user = (User) userDetails;
+        Map<String, Object> claims = new HashMap<>(extraClaims);
+        claims.put("role", user.getRole().name());
         return Jwts
                 .builder()
-                .setClaims(extraClaims)
+                .setClaims(claims)
                 .setSubject(userDetails.getUsername())
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 24))
@@ -62,5 +66,10 @@ public class JwtService {
     private Key getSignInKey() {
         byte[] keyBytes = Decoders.BASE64.decode(SECRET_KEY);
         return Keys.hmacShaKeyFor(keyBytes);
+    }
+
+    public String extractRole(String token) {
+        Claims claims = extractAllClaims(token);
+        return claims.get("role", String.class);
     }
 }

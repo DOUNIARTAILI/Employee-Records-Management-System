@@ -41,8 +41,10 @@ public class AuthenticationService {
         );
         var user = repository.findByEmail(request.getEmail()).orElseThrow();
         var jwtToken = jwtService.generateToken(user);
+        System.out.println("role ======>"+ user.getRole().name());
         return AuthenticationResponse.builder()
                 .token(jwtToken)
+                .role(user.getRole().name())
                 .build();
     }
 }

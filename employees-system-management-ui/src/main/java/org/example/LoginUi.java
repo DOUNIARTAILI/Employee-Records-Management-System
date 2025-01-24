@@ -1,11 +1,17 @@
 package org.example;
 
 import net.miginfocom.swing.MigLayout;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.IOException;
 
 public class LoginUi extends JPanel implements ActionListener{
     private JTextField usernameField;
@@ -49,14 +55,15 @@ public class LoginUi extends JPanel implements ActionListener{
         if (e.getSource() == loginButton) {
             String username = usernameField.getText();
             String password = new String(passwordField.getPassword());
-            if (username.equals("admin") && password.equals("admin")) {
+            Authentification.sendAuthRequest(username, password, "authenticate", (role) -> {
+                // This runs on the EDT (safe for UI updates)
+                System.out.println("role ======>"+ role);
                 new AdminDashboard();
-                frame.dispose();
-            } else {
-                JOptionPane.showMessageDialog(this, "Username or password incorrect!");
-            }
+            });
         } else if (e.getSource() == cancelButton) {
             frame.dispose();
         }
     }
+
 }
+
