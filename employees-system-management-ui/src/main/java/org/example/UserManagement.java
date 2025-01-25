@@ -1,4 +1,6 @@
 package org.example;
+        import com.google.gson.JsonObject;
+        import com.google.gson.JsonParser;
         import net.miginfocom.swing.MigLayout;
         import javax.swing.*;
         import javax.swing.table.DefaultTableModel;
@@ -8,11 +10,17 @@ package org.example;
         import java.awt.event.ActionListener;
         import java.util.ArrayList;
         import java.util.List;
+        import java.net.URI;
+        import java.net.http.HttpClient;
+        import java.net.http.HttpRequest;
+        import java.net.http.HttpResponse;
+        import com.fasterxml.jackson.core.type.TypeReference;
+        import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class UserManagement extends JPanel {
     private JTable userTable;
     private DefaultTableModel tableModel;
-    private List<User> users;
+    private List<UserDeserializer> users;
     private JButton addButton;
     private ImageIcon deleteIcon;
     private ImageIcon editIcon;
@@ -22,6 +30,8 @@ public class UserManagement extends JPanel {
     private JTextField lastNameField = new JTextField(20);
     private JTextField emailField = new JTextField(20);
     private JComboBox<Role> roleComboBox = new JComboBox<>(Role.values());
+    private JPasswordField passwordField = new JPasswordField(20);
+    private JPasswordField confirmPasswordField = new JPasswordField(20);
     private JButton saveButton = new JButton("Save");
     private JButton cancelButton = new JButton("Cancel");
 
@@ -34,13 +44,9 @@ public class UserManagement extends JPanel {
         setLayout(new MigLayout("fill, insets 20", "[grow]", "[][grow]"));
         // Initialize components
         addButton = new JButton("Add");
-        users = new ArrayList<>();
+//        users = new ArrayList<>();
 
-        // Sample users
-        users.add(new User(1, "Sarah", "Connor", "sarah.connor@example.com", Role.ADMIN));
-        users.add(new User(2, "Mike", "Tyson", "mike.tyson@example.com", Role.MANAGER));
-        users.add(new User(3, "Emma", "Watson", "emma.watson@example.com", Role.MANAGER));
-        users.add(new User(4, "John", "Doe", "john.doe@example.com", Role.HR));
+
 
         String[] columns = {"ID", "First Name", "Last Name", "Email", "Role", "Actions"};
         tableModel = new DefaultTableModel(columns, 0) {
@@ -128,15 +134,79 @@ public class UserManagement extends JPanel {
     }
 
     private void deleteUser(int row) {
-        if (row >= 0 && row < users.size()) {
-            users.remove(row);
-            loadUsersIntoTable();
+        // Convert view row to model row to handle sorted/filtered tables
+        int modelRow = userTable.convertRowIndexToModel(row);
+        int id = -1;
+
+        if (modelRow >= 0 && modelRow < users.size()) {
+            UserDeserializer userToDelete = users.get(modelRow);
+            id = userToDelete.getId();
+        } else {
+            JOptionPane.showMessageDialog(this,
+                    "Invalid user selection",
+                    "Error", JOptionPane.ERROR_MESSAGE);
+            return;
         }
+
+        int finalId = id;
+        new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() {
+                try {
+                    HttpClient client = HttpClient.newHttpClient();
+                    HttpRequest request = HttpRequest.newBuilder()
+                            .uri(URI.create("http://localhost:8080/api/v1/user/" + finalId))
+                            .header("Authorization", "Bearer " + Authentification.getJwtToken())
+                            .DELETE()  // Removed BodyPublishers
+                            .build();
+
+                    HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+                    SwingUtilities.invokeLater(() -> {
+                        if (response.statusCode() == 204) {  // Match API's 204 No Content
+                            loadUsersIntoTable();
+                            JOptionPane.showMessageDialog(
+                                    null,  // Or parent component
+                                    "User deleted successfully",
+                                    "Success", JOptionPane.INFORMATION_MESSAGE
+                            );
+                        } else {
+                            String errorMessage = "Delete failed";
+                            try {
+                                // Parse JSON error if available
+                                JsonObject errorJson = JsonParser.parseString(response.body()).getAsJsonObject();
+                                if (errorJson.has("message")) {
+                                    errorMessage = errorJson.get("message").getAsString();
+                                }
+                            } catch (Exception ignored) {}
+
+                            JOptionPane.showMessageDialog(
+                                    null,
+                                    errorMessage,
+                                    "Error", JOptionPane.ERROR_MESSAGE
+                            );
+                        }
+                    });
+                } catch (Exception ex) {
+                    SwingUtilities.invokeLater(() ->
+                            JOptionPane.showMessageDialog(
+                                    null,
+                                    "Connection error: " + ex.getMessage(),
+                                    "Error", JOptionPane.ERROR_MESSAGE
+                            )
+                    );
+                }
+                return null;
+            }
+        }.execute();
     }
 
     private void editUser(int row) {
+        System.out.println("row =======>>>>>> " + row);
+        System.out.println("users.size() =======>>>>>> " + users.size());
         if (row >= 0 && row < users.size()) {
-            User userToEdit = users.get(row);
+            System.out.println("dkhl =======>>>>>> ");
+            UserDeserializer userToEdit = users.get(row);
             showEditUserDialog(userToEdit);
         }
     }
@@ -188,9 +258,25 @@ public class UserManagement extends JPanel {
         gbc.gridx = 1;
         addDialog.add(emailField, gbc);
 
+        gbc.gridx = 0;
+        gbc.gridy = 3; // Adjust grid indices accordingly
+        gbc.anchor = GridBagConstraints.EAST;
+        addDialog.add(new JLabel("Password:"), gbc);
+
+        gbc.gridx = 1;
+        addDialog.add(passwordField, gbc);
+
+        // Confirm Password
+        gbc.gridx = 0;
+        gbc.gridy = 4;
+        addDialog.add(new JLabel("Confirm Password:"), gbc);
+
+        gbc.gridx = 1;
+        addDialog.add(confirmPasswordField, gbc);
+
         // Role
         gbc.gridx = 0;
-        gbc.gridy = 3;
+        gbc.gridy = 5;
         gbc.anchor = GridBagConstraints.EAST;
         addDialog.add(new JLabel("Role:"), gbc);
 
@@ -199,15 +285,46 @@ public class UserManagement extends JPanel {
 
         // Buttons
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 10));
+
         saveButton.addActionListener(e -> {
-            addDialog.dispose();
+            // Collect data from fields
+            String firstname = firstNameField.getText();
+            String lastname = lastNameField.getText();
+            String email = emailField.getText();
+            String password = new String(passwordField.getPassword());
+            String confirmPassword = new String(confirmPasswordField.getPassword());
+            Role role = (Role) roleComboBox.getSelectedItem();
+
+            // Validate input
+            if (!password.equals(confirmPassword)) {
+                JOptionPane.showMessageDialog(addDialog, "Passwords do not match!", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            // Create JSON request body
+            JsonObject requestBody = new JsonObject();
+            requestBody.addProperty("firstname", firstname);
+            requestBody.addProperty("lastname", lastname);
+            requestBody.addProperty("email", email);
+            requestBody.addProperty("password", password);
+            requestBody.addProperty("role", role.toString());
+
+            // Send registration request
+            Authentification.sendAuthRequest(
+                    requestBody,
+                    "register",
+                    (response) -> {
+                        addDialog.dispose();
+                        loadUsersIntoTable();
+                    }
+            );
         });
         cancelButton.addActionListener(e -> addDialog.dispose());
         buttonPanel.add(saveButton);
         buttonPanel.add(cancelButton);
 
         gbc.gridx = 0;
-        gbc.gridy = 4;
+        gbc.gridy = 6;
         gbc.gridwidth = 2;
         gbc.fill = GridBagConstraints.NONE;
         addDialog.add(buttonPanel, gbc);
@@ -218,7 +335,7 @@ public class UserManagement extends JPanel {
     }
 
 
-    private void showEditUserDialog(User user) {
+    private void showEditUserDialog(UserDeserializer user) {
         JDialog editDialog = new JDialog(
                 (Frame) SwingUtilities.getWindowAncestor(this),
                 "Edit User",
@@ -229,13 +346,20 @@ public class UserManagement extends JPanel {
         gbc.insets = new Insets(5, 5, 5, 5);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        // Initialize fields with existing user data
-        firstNameField.setText(user.getFirstname());
-        lastNameField.setText(user.getLastname());
-        emailField.setText(user.getEmail());
-        roleComboBox.setSelectedItem(user.getRole());
+        JTextField editFirstNameField = new JTextField(20);
+        JTextField editLastNameField = new JTextField(20);
+        JTextField editEmailField = new JTextField(20);
+        JPasswordField editPasswordField = new JPasswordField(20);
+        JPasswordField editConfirmPasswordField = new JPasswordField(20);
+        JComboBox<Role> editRoleComboBox = new JComboBox<>(Role.values());
 
-        // First Name
+        editFirstNameField.setText(user.getFirstname());
+        editLastNameField.setText(user.getLastname());
+        editEmailField.setText(user.getEmail());
+        editRoleComboBox.setSelectedItem(user.getRole());
+        editPasswordField.setText("");
+        editConfirmPasswordField.setText("");
+
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.anchor = GridBagConstraints.EAST;
@@ -243,7 +367,7 @@ public class UserManagement extends JPanel {
 
         gbc.gridx = 1;
         gbc.anchor = GridBagConstraints.WEST;
-        editDialog.add(firstNameField, gbc);
+        editDialog.add(editFirstNameField, gbc);
 
         // Last Name
         gbc.gridx = 0;
@@ -252,7 +376,7 @@ public class UserManagement extends JPanel {
         editDialog.add(new JLabel("Last Name:"), gbc);
 
         gbc.gridx = 1;
-        editDialog.add(lastNameField, gbc);
+        editDialog.add(editLastNameField, gbc);
 
         // Email
         gbc.gridx = 0;
@@ -261,36 +385,115 @@ public class UserManagement extends JPanel {
         editDialog.add(new JLabel("Email:"), gbc);
 
         gbc.gridx = 1;
-        editDialog.add(emailField, gbc);
+        editDialog.add(editEmailField, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 3; // Adjust grid indices accordingly
+        gbc.anchor = GridBagConstraints.EAST;
+        editDialog.add(new JLabel("Password:"), gbc);
+
+        gbc.gridx = 1;
+        editDialog.add(editPasswordField, gbc);
+
+        // Confirm Password
+        gbc.gridx = 0;
+        gbc.gridy = 4;
+        editDialog.add(new JLabel("Confirm Password:"), gbc);
+
+        gbc.gridx = 1;
+        editDialog.add(editConfirmPasswordField, gbc);
 
         // Role
         gbc.gridx = 0;
-        gbc.gridy = 3;
+        gbc.gridy = 5;
         gbc.anchor = GridBagConstraints.EAST;
         editDialog.add(new JLabel("Role:"), gbc);
 
         gbc.gridx = 1;
-        editDialog.add(roleComboBox, gbc);
+        editDialog.add(editRoleComboBox, gbc);
 
         // Buttons
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 10));
-        saveButton.addActionListener(e -> {
-            // Update user with new values
-            user.setFirstname(firstNameField.getText());
-            user.setLastname(lastNameField.getText());
-            user.setEmail(emailField.getText());
-            user.setRole((Role) roleComboBox.getSelectedItem());
+        JButton editSaveButton = new JButton("Save");
+        JButton editCancelButton = new JButton("Cancel");
+        editSaveButton.addActionListener(e -> {
+            String newFirstname = editFirstNameField.getText();
+            String newLastname = editLastNameField.getText();
+            String newEmail = editEmailField.getText();
+            Role newRole = (Role) editRoleComboBox.getSelectedItem();
+            String password = new String(editPasswordField.getPassword());
+            String confirmPassword = new String(editConfirmPasswordField.getPassword());
+            int userId = user.getId();
 
-            loadUsersIntoTable();
-            editDialog.dispose();
+            if (!password.isEmpty() && !password.equals(confirmPassword)) {
+                System.out.println("password ====>"+ password);
+                System.out.println("confirmPassword ====>"+ confirmPassword);
+                JOptionPane.showMessageDialog(editDialog,
+                        "Passwords do not match!", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            // Build JSON request body
+            JsonObject requestBody = new JsonObject();
+            requestBody.addProperty("firstname", newFirstname);
+            requestBody.addProperty("lastname", newLastname);
+            requestBody.addProperty("email", newEmail);
+            requestBody.addProperty("role", newRole.toString());
+            if (!password.isEmpty()) {
+                requestBody.addProperty("password", password);
+            }
+
+            // Send update request
+            new SwingWorker<Void, Void>() {
+                @Override
+                protected Void doInBackground() throws Exception {
+                    try {
+                        HttpClient client = HttpClient.newHttpClient();
+                        HttpRequest request = HttpRequest.newBuilder()
+                                .uri(URI.create("http://localhost:8080/api/v1/user/" + userId))
+                                .header("Authorization", "Bearer " + Authentification.getJwtToken())
+                                .header("Content-Type", "application/json")
+                                .PUT(HttpRequest.BodyPublishers.ofString(requestBody.toString()))
+                                .build();
+
+                        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+                        if (response.statusCode() == 200) {
+                            SwingUtilities.invokeLater(() -> {
+                                loadUsersIntoTable();
+                                editDialog.dispose();
+                            });
+                        } else {
+                            String errorMessage = response.body();
+                            if (response.body().contains("Email already taken!")) {
+                                errorMessage = "Email already taken!";
+                            }
+
+                            String finalErrorMessage = errorMessage;
+                            SwingUtilities.invokeLater(() ->
+                                    JOptionPane.showMessageDialog(editDialog,
+                                            "Update failed: " + finalErrorMessage,
+                                            "Error", JOptionPane.ERROR_MESSAGE));
+                        }
+                    } catch (Exception ex) {
+                        SwingUtilities.invokeLater(() ->
+                                JOptionPane.showMessageDialog(editDialog,
+                                        "Connection error: " + ex.getMessage(),
+                                        "Error", JOptionPane.ERROR_MESSAGE));
+                    }
+                    return null;
+                }
+            }.execute();
         });
 
-        cancelButton.addActionListener(e -> editDialog.dispose());
-        buttonPanel.add(saveButton);
-        buttonPanel.add(cancelButton);
+
+
+        editCancelButton.addActionListener(e -> editDialog.dispose());
+        buttonPanel.add(editSaveButton);
+        buttonPanel.add(editCancelButton);
 
         gbc.gridx = 0;
-        gbc.gridy = 4;
+        gbc.gridy = 6;
         gbc.gridwidth = 2;
         gbc.fill = GridBagConstraints.NONE;
         editDialog.add(buttonPanel, gbc);
@@ -299,18 +502,54 @@ public class UserManagement extends JPanel {
         editDialog.setLocationRelativeTo(this);
         editDialog.setVisible(true);
     }
+
     private void loadUsersIntoTable() {
-        tableModel.setRowCount(0);
-        for (User user : users) {
-            tableModel.addRow(new Object[]{
-                    user.getId(),
-                    user.getFirstname(),
-                    user.getLastname(),
-                    user.getEmail(),
-                    user.getRole().toString(),
-                    ""
-            });
+        String token = Authentification.getJwtToken();
+        if (token == null) {
+            JOptionPane.showMessageDialog(null, "Not authenticated!", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
         }
+        new SwingWorker<List<UserDeserializer>, Void>() {
+            @Override
+            protected List<UserDeserializer> doInBackground() throws Exception {
+                HttpClient client = HttpClient.newHttpClient();
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create("http://localhost:8080/api/v1/user"))
+                        .header("Authorization", "Bearer " + token)
+                        .build();
+
+                HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+                System.out.println("Response Body: " + response.body());
+                if (response.statusCode() != 200) {
+                    throw new RuntimeException("Failed to fetch users: HTTP " + response.statusCode());
+                }
+
+                ObjectMapper mapper = new ObjectMapper();
+                return mapper.readValue(response.body(), new TypeReference<List<UserDeserializer>>() {});
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    users = get();
+                    tableModel.setRowCount(0); // Clear existing data
+                    for (UserDeserializer user : users) {
+                        tableModel.addRow(new Object[]{
+                                user.getId(),
+                                user.getFirstname(),
+                                user.getLastname(),
+                                user.getEmail(),
+                                user.getRole(),
+                                ""
+                        });
+                    }
+                } catch (Exception e) {
+                    JOptionPane.showMessageDialog(null, "Error loading users: " + e.getMessage(),
+                            "Error", JOptionPane.ERROR_MESSAGE);
+                    e.printStackTrace();
+                }
+            }
+        }.execute();
     }
 
     public static void main(String[] args) {

@@ -1,5 +1,6 @@
 package org.example;
 
+import com.google.gson.JsonObject;
 import net.miginfocom.swing.MigLayout;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -53,13 +54,27 @@ public class LoginUi extends JPanel implements ActionListener{
     @Override
     public void actionPerformed(ActionEvent e) {
         if (e.getSource() == loginButton) {
-            String username = usernameField.getText();
+            String email = usernameField.getText();
             String password = new String(passwordField.getPassword());
-            Authentification.sendAuthRequest(username, password, "authenticate", (role) -> {
-                // This runs on the EDT (safe for UI updates)
-                System.out.println("role ======>"+ role);
-                new AdminDashboard();
+            JsonObject requestBody = new JsonObject();
+            requestBody.addProperty("email", email); // Use "username" if your API expects it
+            requestBody.addProperty("password", password);
+            Authentification.sendAuthRequest(requestBody, "authenticate", (role) -> {
+                SwingUtilities.invokeLater(() -> {
+                    if (role.equals("ADMIN")) {
+                        new AdminDashboard().setVisible(true);
+                    } else {
+                        new UserDashboard().setVisible(true);
+                    }
+
+                    // Close the login window
+                    Window loginWindow = SwingUtilities.getWindowAncestor(usernameField);
+                    if (loginWindow != null) {
+                        loginWindow.dispose();
+                    }
+                });
             });
+
         } else if (e.getSource() == cancelButton) {
             frame.dispose();
         }
