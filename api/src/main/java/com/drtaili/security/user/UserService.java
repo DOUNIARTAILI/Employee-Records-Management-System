@@ -19,7 +19,9 @@ public class UserService {
                 .orElseThrow(() -> new IllegalStateException("User with id " + id + " does not exist!"));
 
         var userEmail = userRepository.findByEmail(user.getEmail());
-        if (userEmail.isPresent()) {
+        System.out.println("user.getEmail() ========: " + user.getEmail());
+        System.out.println("existingUser.getEmail() ========: " + existingUser.getEmail());
+        if (userEmail.isPresent() && !user.getEmail().equals(existingUser.getEmail())) {
             throw new IllegalStateException("Email already taken!");
         }
 

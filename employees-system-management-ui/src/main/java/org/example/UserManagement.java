@@ -642,15 +642,11 @@ public class UserManagement extends JPanel {
                                 editDialog.dispose();
                             });
                         } else {
-                            String errorMessage = response.body();
-                            if (response.body().contains("Email already taken!")) {
-                                errorMessage = "Email already taken!";
-                            }
 
-                            String finalErrorMessage = errorMessage;
+                            String finalErrorMessage = "Email already taken!";
                             SwingUtilities.invokeLater(() ->
                                     JOptionPane.showMessageDialog(editDialog,
-                                            "Update failed: " + finalErrorMessage,
+                                            finalErrorMessage,
                                             "Error", JOptionPane.ERROR_MESSAGE));
                         }
                     } catch (Exception ex) {
