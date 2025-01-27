@@ -3,6 +3,8 @@ package org.example;
         import com.google.gson.JsonParser;
         import net.miginfocom.swing.MigLayout;
         import javax.swing.*;
+        import javax.swing.event.DocumentEvent;
+        import javax.swing.event.DocumentListener;
         import javax.swing.table.DefaultTableModel;
         import javax.swing.table.TableCellRenderer;
         import java.awt.*;
@@ -34,10 +36,32 @@ public class UserManagement extends JPanel {
     private JPasswordField confirmPasswordField = new JPasswordField(20);
     private JButton saveButton = new JButton("Save");
     private JButton cancelButton = new JButton("Cancel");
+    private JButton editSaveButton = new JButton("Save");
+
+    private JLabel firstNameErrorLabel = new JLabel();
+    private JLabel lastNameErrorLabel = new JLabel();
+    private JLabel emailErrorLabel = new JLabel();
+    private JLabel passwordErrorLabel = new JLabel();
+    private JLabel confirmPasswordErrorLabel = new JLabel();
 
     public UserManagement() {
         initializeUI();
         loadUsersIntoTable();
+        initializeErrorLabels();
+    }
+
+    private void initializeErrorLabels() {
+        Font errorFont = new Font("SansSerif", Font.PLAIN, 10);
+        Color errorColor = Color.RED;
+
+        for (JLabel errorLabel : List.of(
+                firstNameErrorLabel, lastNameErrorLabel, emailErrorLabel,
+                passwordErrorLabel, confirmPasswordErrorLabel
+        )) {
+            errorLabel.setFont(errorFont);
+            errorLabel.setForeground(errorColor);
+            errorLabel.setText(" ");
+        }
     }
 
     private void initializeUI() {
@@ -213,6 +237,7 @@ public class UserManagement extends JPanel {
 
 
     private void showAddUserDialog() {
+        clearAllErrors();
         // In showAddUserDialog() and similar methods
         JDialog addDialog = new JDialog(
                 (Frame) SwingUtilities.getWindowAncestor(this),
@@ -235,53 +260,62 @@ public class UserManagement extends JPanel {
         gbc.gridy = 0;
         gbc.anchor = GridBagConstraints.EAST;
         addDialog.add(new JLabel("First Name:"), gbc);
-
         gbc.gridx = 1;
         gbc.anchor = GridBagConstraints.WEST;
         addDialog.add(firstNameField, gbc);
+        gbc.gridy++;
+        addDialog.add(firstNameErrorLabel, gbc);
 
         // Last Name
         gbc.gridx = 0;
-        gbc.gridy = 1;
+        gbc.gridy++;
         gbc.anchor = GridBagConstraints.EAST;
         addDialog.add(new JLabel("Last Name:"), gbc);
-
         gbc.gridx = 1;
         addDialog.add(lastNameField, gbc);
+        gbc.gridy++;
+        addDialog.add(lastNameErrorLabel, gbc);
 
         // Email
         gbc.gridx = 0;
-        gbc.gridy = 2;
+        gbc.gridy++;
         gbc.anchor = GridBagConstraints.EAST;
         addDialog.add(new JLabel("Email:"), gbc);
-
         gbc.gridx = 1;
         addDialog.add(emailField, gbc);
+        gbc.gridy++;
+        gbc.gridx = 1;
+        addDialog.add(emailErrorLabel, gbc);
 
         gbc.gridx = 0;
-        gbc.gridy = 3; // Adjust grid indices accordingly
+        gbc.gridy++; // Adjust grid indices accordingly
         gbc.anchor = GridBagConstraints.EAST;
         addDialog.add(new JLabel("Password:"), gbc);
-
         gbc.gridx = 1;
         addDialog.add(passwordField, gbc);
+        gbc.gridy++;
+        gbc.gridx = 1;
+        addDialog.add(passwordErrorLabel, gbc);
 
         // Confirm Password
         gbc.gridx = 0;
-        gbc.gridy = 4;
+        gbc.gridy++;
         addDialog.add(new JLabel("Confirm Password:"), gbc);
-
         gbc.gridx = 1;
         addDialog.add(confirmPasswordField, gbc);
+        gbc.gridy++;
+        gbc.gridx = 1;
+        addDialog.add(confirmPasswordErrorLabel, gbc);
 
         // Role
         gbc.gridx = 0;
-        gbc.gridy = 5;
+        gbc.gridy++;
         gbc.anchor = GridBagConstraints.EAST;
         addDialog.add(new JLabel("Role:"), gbc);
 
         gbc.gridx = 1;
         addDialog.add(roleComboBox, gbc);
+        addValidationListeners();
 
         // Buttons
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 10));
@@ -324,7 +358,7 @@ public class UserManagement extends JPanel {
         buttonPanel.add(cancelButton);
 
         gbc.gridx = 0;
-        gbc.gridy = 6;
+        gbc.gridy++;
         gbc.gridwidth = 2;
         gbc.fill = GridBagConstraints.NONE;
         addDialog.add(buttonPanel, gbc);
@@ -332,8 +366,125 @@ public class UserManagement extends JPanel {
         addDialog.pack();
         addDialog.setLocationRelativeTo(this);
         addDialog.setVisible(true);
+        saveButton.setEnabled(false);
+    }
+    private void clearAllErrors() {
+        for (JLabel label : List.of(firstNameErrorLabel, lastNameErrorLabel,
+                emailErrorLabel, passwordErrorLabel, confirmPasswordErrorLabel)) {
+            label.setText(" ");
+        }
+    }
+    private void addValidationListeners() {
+        // First Name
+        firstNameField.getDocument().addDocumentListener(new DocumentListener() {
+            public void changedUpdate(DocumentEvent e) { validateFirstName(); }
+            public void insertUpdate(DocumentEvent e) { validateFirstName(); }
+            public void removeUpdate(DocumentEvent e) { validateFirstName(); }
+        });
+
+        // Last Name
+        lastNameField.getDocument().addDocumentListener(new DocumentListener() {
+            public void changedUpdate(DocumentEvent e) { validateLastName(); }
+            public void insertUpdate(DocumentEvent e) { validateLastName(); }
+            public void removeUpdate(DocumentEvent e) { validateLastName(); }
+        });
+
+        // Email
+        emailField.getDocument().addDocumentListener(new DocumentListener() {
+            public void changedUpdate(DocumentEvent e) { validateEmail(); }
+            public void insertUpdate(DocumentEvent e) { validateEmail(); }
+            public void removeUpdate(DocumentEvent e) { validateEmail(); }
+        });
+
+        // Password & Confirm Password
+        DocumentListener passwordListener = new DocumentListener() {
+            public void changedUpdate(DocumentEvent e) { validatePasswords(); }
+            public void insertUpdate(DocumentEvent e) { validatePasswords(); }
+            public void removeUpdate(DocumentEvent e) { validatePasswords(); }
+        };
+        passwordField.getDocument().addDocumentListener(passwordListener);
+        confirmPasswordField.getDocument().addDocumentListener(passwordListener);
+    }
+    private void validateFirstName() {
+        String text = firstNameField.getText().trim();
+        if (text.isEmpty()) {
+            showError(firstNameErrorLabel, "First name is required");
+        }
+        else if (text.length() > 20) {
+            showError(firstNameErrorLabel, "First name must be less than 20 characters");
+        }
+        else {
+            clearError(firstNameErrorLabel);
+        }
+        updateSaveButtonState();
     }
 
+    private void validateLastName() {
+        String text = lastNameField.getText().trim();
+        if (text.isEmpty()) {
+            showError(lastNameErrorLabel, "Last name is required");
+        }
+        else if (text.length() > 20) {
+            showError(firstNameErrorLabel, "Last name must be less than 20 characters");
+        }
+        else {
+            clearError(lastNameErrorLabel);
+        }
+        updateSaveButtonState();
+    }
+
+    private void validateEmail() {
+        String email = emailField.getText().trim();
+        String regex = "^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$";
+        if (email.isEmpty()) {
+            showError(emailErrorLabel, "Email is required");
+        } else if (!email.matches(regex)) {
+            showError(emailErrorLabel, "Invalid email format");
+        } else {
+            clearError(emailErrorLabel);
+        }
+        updateSaveButtonState();
+    }
+
+    private void validatePasswords() {
+        String password = new String(passwordField.getPassword());
+        String confirm = new String(confirmPasswordField.getPassword());
+
+        // Password length
+        if (password.length() < 8) {
+            showError(passwordErrorLabel, "Password must be ≥8 characters");
+        } else {
+            clearError(passwordErrorLabel);
+        }
+
+        // Password match
+        if (!password.equals(confirm)) {
+            showError(confirmPasswordErrorLabel, "Passwords don't match");
+        } else {
+            clearError(confirmPasswordErrorLabel);
+        }
+        updateSaveButtonState();
+    }
+
+    private void showError(JLabel errorLabel, String message) {
+        errorLabel.setText(message);
+    }
+
+    private void clearError(JLabel errorLabel) {
+        errorLabel.setText(" ");
+    }
+
+    private boolean isFormValid() {
+        return firstNameErrorLabel.getText().trim().isEmpty() &&
+                lastNameErrorLabel.getText().trim().isEmpty() &&
+                emailErrorLabel.getText().trim().isEmpty() &&
+                passwordErrorLabel.getText().trim().isEmpty() &&
+                confirmPasswordErrorLabel.getText().trim().isEmpty();
+    }
+
+    private void updateSaveButtonState() {
+        saveButton.setEnabled(isFormValid());
+    }
 
     private void showEditUserDialog(UserDeserializer user) {
         JDialog editDialog = new JDialog(
@@ -353,6 +504,20 @@ public class UserManagement extends JPanel {
         JPasswordField editConfirmPasswordField = new JPasswordField(20);
         JComboBox<Role> editRoleComboBox = new JComboBox<>(Role.values());
 
+        JLabel firstNameErrorLabel = new JLabel();
+        JLabel lastNameErrorLabel = new JLabel();
+        JLabel emailErrorLabel = new JLabel();
+        JLabel passwordErrorLabel = new JLabel();
+        JLabel confirmPasswordErrorLabel = new JLabel();
+
+        Font errorFont = new Font("SansSerif", Font.PLAIN, 10);
+        Color errorColor = Color.RED;
+        for (JLabel label : List.of(firstNameErrorLabel, lastNameErrorLabel,
+                emailErrorLabel, passwordErrorLabel, confirmPasswordErrorLabel)) {
+            label.setFont(errorFont);
+            label.setForeground(errorColor);
+        }
+
         editFirstNameField.setText(user.getFirstname());
         editLastNameField.setText(user.getLastname());
         editEmailField.setText(user.getEmail());
@@ -364,58 +529,71 @@ public class UserManagement extends JPanel {
         gbc.gridy = 0;
         gbc.anchor = GridBagConstraints.EAST;
         editDialog.add(new JLabel("First Name:"), gbc);
-
         gbc.gridx = 1;
         gbc.anchor = GridBagConstraints.WEST;
         editDialog.add(editFirstNameField, gbc);
+        gbc.gridy++;
+        editDialog.add(firstNameErrorLabel, gbc);
 
         // Last Name
         gbc.gridx = 0;
-        gbc.gridy = 1;
+        gbc.gridy++;
         gbc.anchor = GridBagConstraints.EAST;
         editDialog.add(new JLabel("Last Name:"), gbc);
-
         gbc.gridx = 1;
         editDialog.add(editLastNameField, gbc);
+        gbc.gridy++;
+        editDialog.add(lastNameErrorLabel, gbc);
 
         // Email
         gbc.gridx = 0;
-        gbc.gridy = 2;
+        gbc.gridy++;
         gbc.anchor = GridBagConstraints.EAST;
         editDialog.add(new JLabel("Email:"), gbc);
-
         gbc.gridx = 1;
         editDialog.add(editEmailField, gbc);
+        gbc.gridy++;
+        editDialog.add(emailErrorLabel, gbc);
+
 
         gbc.gridx = 0;
-        gbc.gridy = 3; // Adjust grid indices accordingly
+        gbc.gridy++; // Adjust grid indices accordingly
         gbc.anchor = GridBagConstraints.EAST;
         editDialog.add(new JLabel("Password:"), gbc);
-
         gbc.gridx = 1;
         editDialog.add(editPasswordField, gbc);
+        gbc.gridy++;
+        editDialog.add(passwordErrorLabel, gbc);
+
 
         // Confirm Password
         gbc.gridx = 0;
-        gbc.gridy = 4;
+        gbc.gridy++;
         editDialog.add(new JLabel("Confirm Password:"), gbc);
-
         gbc.gridx = 1;
         editDialog.add(editConfirmPasswordField, gbc);
+        gbc.gridy++;
+        editDialog.add(confirmPasswordErrorLabel, gbc);
+
 
         // Role
         gbc.gridx = 0;
-        gbc.gridy = 5;
+        gbc.gridy++;
         gbc.anchor = GridBagConstraints.EAST;
         editDialog.add(new JLabel("Role:"), gbc);
-
         gbc.gridx = 1;
         editDialog.add(editRoleComboBox, gbc);
 
         // Buttons
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 10));
-        JButton editSaveButton = new JButton("Save");
         JButton editCancelButton = new JButton("Cancel");
+
+        addEditValidationListeners(
+                editFirstNameField, editLastNameField, editEmailField,
+                editPasswordField, editConfirmPasswordField,
+                firstNameErrorLabel, lastNameErrorLabel,
+                emailErrorLabel, passwordErrorLabel, confirmPasswordErrorLabel
+        );
         editSaveButton.addActionListener(e -> {
             String newFirstname = editFirstNameField.getText();
             String newLastname = editLastNameField.getText();
@@ -493,7 +671,7 @@ public class UserManagement extends JPanel {
         buttonPanel.add(editCancelButton);
 
         gbc.gridx = 0;
-        gbc.gridy = 6;
+        gbc.gridy++;
         gbc.gridwidth = 2;
         gbc.fill = GridBagConstraints.NONE;
         editDialog.add(buttonPanel, gbc);
@@ -501,6 +679,124 @@ public class UserManagement extends JPanel {
         editDialog.pack();
         editDialog.setLocationRelativeTo(this);
         editDialog.setVisible(true);
+        editSaveButton.setEnabled(false);
+    }
+
+    private void addEditValidationListeners(JTextField firstName, JTextField lastName,
+                                            JTextField email, JPasswordField password,
+                                            JPasswordField confirmPassword,
+                                            JLabel EfirstNameError, JLabel ElastNameError,
+                                            JLabel EemailError, JLabel EpasswordError,
+                                            JLabel EconfirmPasswordError
+                                            ) {
+        // First Name
+        firstName.getDocument().addDocumentListener(new DocumentListener() {
+            public void changedUpdate(DocumentEvent e) { validateEditName(firstName, EfirstNameError); }
+            public void insertUpdate(DocumentEvent e) { validateEditName(firstName, EfirstNameError); }
+            public void removeUpdate(DocumentEvent e) { validateEditName(firstName, EfirstNameError); }
+        });
+
+        // Last Name
+        lastName.getDocument().addDocumentListener(new DocumentListener() {
+            public void changedUpdate(DocumentEvent e) { validateEditLastName(lastName, ElastNameError); }
+            public void insertUpdate(DocumentEvent e) { validateEditLastName(lastName, ElastNameError); }
+            public void removeUpdate(DocumentEvent e) { validateEditLastName(lastName, ElastNameError); }
+        });
+
+        // Email
+        email.getDocument().addDocumentListener(new DocumentListener() {
+            public void changedUpdate(DocumentEvent e) { validateEditEmail(email, EemailError); }
+            public void insertUpdate(DocumentEvent e) { validateEditEmail(email, EemailError); }
+            public void removeUpdate(DocumentEvent e) { validateEditEmail(email, EemailError); }
+        });
+
+        // Password listeners
+        DocumentListener passwordListener = new DocumentListener() {
+            public void changedUpdate(DocumentEvent e) { validateEditPasswords(password, confirmPassword, EpasswordError, EconfirmPasswordError); }
+            public void insertUpdate(DocumentEvent e) { validateEditPasswords(password, confirmPassword, EpasswordError, EconfirmPasswordError); }
+            public void removeUpdate(DocumentEvent e) { validateEditPasswords(password, confirmPassword, EpasswordError, EconfirmPasswordError); }
+        };
+        password.getDocument().addDocumentListener(passwordListener);
+        confirmPassword.getDocument().addDocumentListener(passwordListener);
+    }
+
+    private void validateEditName(JTextField firstname, JLabel EfirstNameErrorLabel) {
+        String text = firstname.getText().trim();
+        if (text.isEmpty()) {
+            EfirstNameErrorLabel.setText("First name is required");
+        } else if (text.length() > 20) {
+            EfirstNameErrorLabel.setText("First name must be less than 20 characters");
+        } else {
+            EfirstNameErrorLabel.setText(" ");
+        }
+        updateEditSaveButtonState(editSaveButton, EfirstNameErrorLabel
+        );
+    }
+
+    private void validateEditLastName(JTextField field, JLabel errorLabel) {
+        String text = field.getText().trim();
+        if (text.isEmpty()) {
+            errorLabel.setText("Last name is required");
+        } else if (text.length() > 20) {
+            errorLabel.setText("Last name must be less than 20 characters");
+        } else {
+            errorLabel.setText(" ");
+        }
+        updateEditSaveButtonState(editSaveButton, errorLabel
+        );
+    }
+
+    private void validateEditEmail(JTextField emailField, JLabel errorLabel) {
+        String email = emailField.getText().trim();
+        String regex = "^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$";
+        if (email.isEmpty()) {
+            errorLabel.setText("Email is required");
+        } else if (!email.matches(regex)) {
+            errorLabel.setText("Invalid email format");
+        } else {
+            errorLabel.setText(" ");
+        }
+        updateEditSaveButtonState(editSaveButton,
+                errorLabel);
+    }
+
+    private void validateEditPasswords(JPasswordField passwordField,
+                                       JPasswordField confirmField,
+                                       JLabel passError,
+                                       JLabel confirmError) {
+        String password = new String(passwordField.getPassword());
+        String confirm = new String(confirmField.getPassword());
+
+        if (password.isEmpty() && confirm.isEmpty()) {
+            passError.setText(" ");
+            confirmError.setText(" ");
+            return;
+        }
+
+        if (password.length() < 8) {
+            passError.setText("≥8 characters required");
+        } else {
+            passError.setText(" ");
+        }
+
+        if (!password.equals(confirm)) {
+            confirmError.setText("Passwords must match");
+        } else {
+            confirmError.setText(" ");
+        }
+        updateEditSaveButtonState(editSaveButton
+                , passError, confirmError);
+    }
+
+    private void updateEditSaveButtonState(JButton button, JLabel... errorLabels) {
+        boolean isValid = true;
+        for (JLabel label : errorLabels) {
+            if (!label.getText().trim().isEmpty()) {
+                isValid = false;
+                break;
+            }
+        }
+        editSaveButton.setEnabled(isValid);
     }
 
     private void loadUsersIntoTable() {
