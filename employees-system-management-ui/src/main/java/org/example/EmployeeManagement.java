@@ -3,6 +3,7 @@ package org.example;
         import com.fasterxml.jackson.core.type.TypeReference;
         import com.fasterxml.jackson.databind.ObjectMapper;
         import com.google.gson.JsonObject;
+        import com.google.gson.JsonParser;
         import net.miginfocom.swing.MigLayout;
         import javax.swing.*;
         import javax.swing.event.DocumentEvent;
@@ -126,10 +127,69 @@ public class EmployeeManagement extends JPanel {
     }
 
     private void deleteEmployee(int row) {
-        if (row >= 0 && row < employees.size()) {
-            employees.remove(row);
-            loadEmployeesIntoTable();
+        int modelRow = employeeTable.convertRowIndexToModel(row);
+        Long id = -1L;
+
+        if (modelRow >= 0 && modelRow < employees.size()) {
+            Employee employeeToDelete = employees.get(modelRow);
+            id = employeeToDelete.getEmployeeId();
+        } else {
+            JOptionPane.showMessageDialog(this,
+                    "Invalid user selection",
+                    "Error", JOptionPane.ERROR_MESSAGE);
+            return;
         }
+
+        Long finalId = id;
+        new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() {
+                try {
+                    HttpClient client = HttpClient.newHttpClient();
+                    HttpRequest request = HttpRequest.newBuilder()
+                            .uri(URI.create("http://localhost:8080/api/v1/employee/" + finalId))
+                            .header("Authorization", "Bearer " + Authentification.getJwtToken())
+                            .DELETE()
+                            .build();
+
+                    HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+                    SwingUtilities.invokeLater(() -> {
+                        if (response.statusCode() == 204) {
+                            loadEmployeesIntoTable();
+                            JOptionPane.showMessageDialog(
+                                    null,
+                                    "Employee deleted successfully",
+                                    "Success", JOptionPane.INFORMATION_MESSAGE
+                            );
+                        } else {
+                            String errorMessage = "Delete failed";
+                            try {
+                                JsonObject errorJson = JsonParser.parseString(response.body()).getAsJsonObject();
+                                if (errorJson.has("message")) {
+                                    errorMessage = errorJson.get("message").getAsString();
+                                }
+                            } catch (Exception ignored) {}
+
+                            JOptionPane.showMessageDialog(
+                                    null,
+                                    errorMessage,
+                                    "Error", JOptionPane.ERROR_MESSAGE
+                            );
+                        }
+                    });
+                } catch (Exception ex) {
+                    SwingUtilities.invokeLater(() ->
+                            JOptionPane.showMessageDialog(
+                                    null,
+                                    "Connection error: " + ex.getMessage(),
+                                    "Error", JOptionPane.ERROR_MESSAGE
+                            )
+                    );
+                }
+                return null;
+            }
+        }.execute();
     }
 
     private void editEmployee(int row) {
