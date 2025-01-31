@@ -1,7 +1,10 @@
 package org.example;
 
-import java.util.Date;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.Date;
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class Employee {
     private Long employeeId;
     private String fullName;
@@ -11,7 +14,7 @@ public class Employee {
     private String employmentStatus;
     private String contactInformation;
     private String address;
-
+    public Employee(){}
     public Employee(Long employeeId, String fullName, String jobTitle, String department,
                     Date hireDate, String employmentStatus, String contactInformation, String address) {
         this.employeeId = employeeId;

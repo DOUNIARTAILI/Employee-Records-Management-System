@@ -24,15 +24,15 @@ public class Employee {
     private Long employeeId;
 
     @NotBlank(message = "Full name is required")
-    @Size(max = 100, message = "Full name must be less than 100 characters")
+    @Size(max = 30, message = "Full name must be less than 30 characters")
     private String fullName;
 
     @NotBlank(message = "Job title is required")
-    @Size(max = 50, message = "Job title must be less than 50 characters")
+    @Size(max = 30, message = "Job title must be less than 30 characters")
     private String jobTitle;
 
     @NotBlank(message = "Department is required")
-    @Size(max = 50, message = "Department must be less than 50 characters")
+    @Size(max = 30, message = "Department must be less than 30 characters")
     private String department;
 
     @NotNull(message = "Hire date is required")
